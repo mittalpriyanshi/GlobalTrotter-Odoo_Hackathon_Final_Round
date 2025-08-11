@@ -1,0 +1,36 @@
+// Centralized shared constants for the frontend app
+
+export const LANGUAGES = [
+  "English",
+  "Spanish",
+  "French",
+  "German",
+  "Italian",
+  "Portuguese",
+  "Russian",
+  "Chinese",
+  "Japanese",
+  "Korean",
+  "Arabic",
+  "Hindi",
+  "Bengali",
+  "Turkish",
+  "Dutch",
+  "Swedish",
+  "Norwegian",
+  "Danish",
+  "Finnish",
+  "Polish",
+  "Czech",
+  "Greek",
+  "Hebrew",
+  "Thai",
+  "Vietnamese",
+  "Indonesian",
+  "Malay",
+  "Filipino",
+  "Urdu",
+  "Persian",
+];
+
+

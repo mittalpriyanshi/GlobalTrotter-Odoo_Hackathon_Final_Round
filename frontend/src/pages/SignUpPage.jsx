@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 
 import useSignUp from "../hooks/useSignUp";
@@ -25,10 +25,13 @@ const SignUpPage = () => {
 
   // This is how we did it using our custom hook - optimized version
   const { isPending, error, signupMutation } = useSignUp();
+  const navigate = useNavigate();
 
   const handleSignup = (e) => {
     e.preventDefault();
     signupMutation(signupData);
+    // Navigate immediately to onboarding for a seamless flow
+    navigate("/onboarding");
   };
 
   return (

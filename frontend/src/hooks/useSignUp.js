@@ -8,7 +8,7 @@ const useSignUp = () => {
 
   const { mutate, isPending, error } = useMutation({
     mutationFn: signup,
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       console.log("Signup successful:", data);
       console.log("User data:", data.user);
       console.log("Is onboarded:", data.user.isOnboarded);
@@ -18,9 +18,14 @@ const useSignUp = () => {
       console.log("Setting cache data:", cacheData);
       queryClient.setQueryData(["authUser"], cacheData);
       
-      // Navigate to onboarding page immediately
+      // Navigate to onboarding page immediately with prefill data
       console.log("Navigating to onboarding...");
-      navigate("/onboarding");
+      navigate("/onboarding", {
+        state: {
+          fullName: data?.user?.fullName ?? variables?.fullName ?? "",
+          email: data?.user?.email ?? variables?.email ?? "",
+        },
+      });
     },
     onError: (error) => {
       console.error("Signup error:", error);

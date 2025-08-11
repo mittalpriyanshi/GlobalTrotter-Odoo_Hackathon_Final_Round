@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import useLogin from "../hooks/useLogin";
 
 const LoginPage = () => {
@@ -21,10 +21,13 @@ const LoginPage = () => {
 
   // This is how we did it using our custom hook - optimized version
   const { isPending, error, loginMutation } = useLogin();
+  const navigate = useNavigate();
 
   const handleLogin = (e) => {
     e.preventDefault();
     loginMutation(loginData);
+    // Immediate redirect to landing for your current requirement
+    navigate("/landing");
   };
 
   return (
