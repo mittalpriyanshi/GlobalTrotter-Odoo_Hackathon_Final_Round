@@ -68,7 +68,7 @@ const activityTemplates = {
   ]
 };
 
-const ItineraryBuilder = () => {
+const ItineraryBuilderEnhanced = () => {
   const { authUser } = useAuthUser();
   const [stops, setStops] = useState([defaultStop()]);
   const [itineraryName, setItineraryName] = useState("");
@@ -79,7 +79,22 @@ const ItineraryBuilder = () => {
   const [expandedStops, setExpandedStops] = useState(new Set());
   const [savedItineraries, setSavedItineraries] = useState([]);
 
-  const currencies = ["USD", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY", "INR"];
+  const currencies = [
+    { code: 'USD', symbol: '$', name: 'US Dollar' },
+    { code: 'EUR', symbol: '€', name: 'Euro' },
+    { code: 'GBP', symbol: '£', name: 'British Pound' },
+    { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+    { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+    { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
+    { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+    { code: 'CHF', symbol: 'CHF', name: 'Swiss Franc' },
+    { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' }
+  ];
+  
+  const getCurrencySymbol = (currencyCode) => {
+    const currency = currencies.find(c => c.code === currencyCode);
+    return currency ? currency.symbol : currencyCode;
+  };
 
   useEffect(() => {
     loadSavedItineraries();
@@ -167,26 +182,6 @@ const ItineraryBuilder = () => {
     }, 0);
   };
 
-  const generateDayPlans = (stopId) => {
-    const stop = stops.find(s => s.id === stopId);
-    if (!stop || !stop.start || !stop.end) return;
-
-    const startDate = new Date(stop.start);
-    const endDate = new Date(stop.end);
-    const dayPlans = [];
-
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      dayPlans.push({
-        id: crypto.randomUUID(),
-        date: d.toISOString().split('T')[0],
-        activities: []
-      });
-    }
-
-    updateStop(stopId, { dayPlans });
-    toast.success("Day plans generated!");
-  };
-
   const saveItinerary = () => {
     if (!itineraryName.trim()) {
       toast.error("Please enter an itinerary name");
@@ -269,21 +264,21 @@ const ItineraryBuilder = () => {
   return (
     <div className="min-h-screen" data-theme="retro">
       <Navbar />
-      <div className="p-4 sm:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto space-y-6">
+      <div className="p-2 sm:p-4 lg:p-6 xl:p-8">
+        <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
           
           {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Build Itinerary</h1>
-              <p className="text-lg opacity-70">Create detailed day-wise travel plans</p>
+          <div className="flex flex-col gap-4">
+            <div className="text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl font-bold">Enhanced Itinerary Builder</h1>
+              <p className="text-base sm:text-lg opacity-70">Create detailed day-wise travel plans with budget tracking</p>
             </div>
-            <div className="flex gap-2">
-              <button onClick={exportItinerary} className="btn btn-outline" disabled={!itineraryName}>
+            <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+              <button onClick={exportItinerary} className="btn btn-outline btn-sm sm:btn-md" disabled={!itineraryName}>
                 <DownloadIcon className="w-4 h-4 mr-2" />
                 Export
               </button>
-              <button onClick={saveItinerary} className="btn btn-primary">
+              <button onClick={saveItinerary} className="btn btn-primary btn-sm sm:btn-md">
                 <SaveIcon className="w-4 h-4 mr-2" />
                 Save Itinerary
               </button>
@@ -293,14 +288,14 @@ const ItineraryBuilder = () => {
           {/* Itinerary Header */}
           <div className="card bg-base-100 border border-primary/20">
             <div className="card-body">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="form-control">
                   <label className="label">
                     <span className="label-text font-medium">Itinerary Name *</span>
                   </label>
                   <input
                     type="text"
-                    className="input input-bordered"
+                    className="input input-bordered input-sm sm:input-md"
                     value={itineraryName}
                     onChange={(e) => setItineraryName(e.target.value)}
                     placeholder="e.g., Europe Adventure 2024"
@@ -312,23 +307,23 @@ const ItineraryBuilder = () => {
                   </label>
                   <input
                     type="number"
-                    className="input input-bordered"
+                    className="input input-bordered input-sm sm:input-md"
                     value={totalBudget}
                     onChange={(e) => setTotalBudget(e.target.value)}
                     placeholder="0.00"
                   />
                 </div>
-                <div className="form-control">
+                <div className="form-control sm:col-span-2 lg:col-span-1">
                   <label className="label">
                     <span className="label-text font-medium">Currency</span>
                   </label>
                   <select
-                    className="select select-bordered"
+                    className="select select-bordered select-sm sm:select-md"
                     value={currency}
                     onChange={(e) => setCurrency(e.target.value)}
                   >
                     {currencies.map(curr => (
-                      <option key={curr} value={curr}>{curr}</option>
+                      <option key={curr.code} value={curr.code}>{curr.symbol} - {curr.name}</option>
                     ))}
                   </select>
                 </div>
@@ -339,16 +334,16 @@ const ItineraryBuilder = () => {
               <div className="stats stats-horizontal">
                 <div className="stat">
                   <div className="stat-title">Planned Budget</div>
-                  <div className="stat-value text-primary">{currency} {totalBudget || '0'}</div>
+                  <div className="stat-value text-primary">{getCurrencySymbol(currency)} {totalBudget || '0'}</div>
                 </div>
                 <div className="stat">
                   <div className="stat-title">Estimated Cost</div>
-                  <div className="stat-value text-secondary">{currency} {calculateTotalCost().toFixed(2)}</div>
+                  <div className="stat-value text-secondary">{getCurrencySymbol(currency)} {calculateTotalCost().toFixed(2)}</div>
                 </div>
                 <div className="stat">
-                  <div className="stat-title">Difference</div>
+                  <div className="stat-title">Remaining Amount</div>
                   <div className={`stat-value ${(parseFloat(totalBudget) || 0) >= calculateTotalCost() ? 'text-success' : 'text-error'}`}>
-                    {currency} {((parseFloat(totalBudget) || 0) - calculateTotalCost()).toFixed(2)}
+                    {getCurrencySymbol(currency)} {((parseFloat(totalBudget) || 0) - calculateTotalCost()).toFixed(2)}
                   </div>
                 </div>
               </div>
@@ -405,10 +400,6 @@ const ItineraryBuilder = () => {
                           <CopyIcon className="w-4 h-4" />
                           Duplicate Stop
                         </button></li>
-                        <li><button onClick={() => generateDayPlans(stop.id)}>
-                          <CalendarIcon className="w-4 h-4" />
-                          Generate Day Plans
-                        </button></li>
                         <li><button
                           onClick={() => removeStop(stop.id)}
                           className="text-error"
@@ -463,7 +454,7 @@ const ItineraryBuilder = () => {
                   </div>
                   <div className="form-control">
                     <label className="label">
-                      <span className="label-text">Budget ({currency})</span>
+                      <span className="label-text">Budget ({getCurrencySymbol(currency)})</span>
                     </label>
                     <div className="relative">
                       <DollarSignIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 opacity-50" />
@@ -477,17 +468,240 @@ const ItineraryBuilder = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Expanded Content */}
+                {expandedStops.has(stop.id) && (
+                  <div className="space-y-6">
+                    
+                    {/* Accommodation & Notes */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="form-control">
+                        <label className="label">
+                          <span className="label-text">Accommodation</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="input input-bordered"
+                          value={stop.accommodation}
+                          onChange={(e) => updateStop(stop.id, { accommodation: e.target.value })}
+                          placeholder="Hotel name or area"
+                        />
+                      </div>
+                      <div className="form-control">
+                        <label className="label">
+                          <span className="label-text">Notes</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="input input-bordered"
+                          value={stop.notes}
+                          onChange={(e) => updateStop(stop.id, { notes: e.target.value })}
+                          placeholder="Special notes or reminders"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Activities Section */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold">Activities & Plans</h3>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedStopForTemplate(stop.id);
+                              setIsTemplateModalOpen(true);
+                            }}
+                            className="btn btn-outline btn-sm"
+                          >
+                            <StarIcon className="w-4 h-4 mr-1" />
+                            Add Template
+                          </button>
+                          <button
+                            onClick={() => addActivity(stop.id)}
+                            className="btn btn-primary btn-sm"
+                          >
+                            <PlusIcon className="w-4 h-4 mr-1" />
+                            Add Activity
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Activities List */}
+                      {stop.activities.length > 0 ? (
+                        <div className="space-y-3">
+                          {stop.activities.map((activity, actIdx) => (
+                            <div key={activity.id} className="card bg-base-200 border border-primary/10">
+                              <div className="card-body p-4">
+                                <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+                                  <div className="form-control md:col-span-2">
+                                    <label className="label label-text-alt">Activity Name</label>
+                                    <input
+                                      type="text"
+                                      className="input input-bordered input-sm"
+                                      value={activity.name}
+                                      onChange={(e) => updateActivity(stop.id, activity.id, { name: e.target.value })}
+                                      placeholder="Activity description"
+                                    />
+                                  </div>
+                                  <div className="form-control">
+                                    <label className="label label-text-alt">Time</label>
+                                    <input
+                                      type="time"
+                                      className="input input-bordered input-sm"
+                                      value={activity.time}
+                                      onChange={(e) => updateActivity(stop.id, activity.id, { time: e.target.value })}
+                                    />
+                                  </div>
+                                  <div className="form-control">
+                                    <label className="label label-text-alt">Duration</label>
+                                    <input
+                                      type="text"
+                                      className="input input-bordered input-sm"
+                                      value={activity.duration}
+                                      onChange={(e) => updateActivity(stop.id, activity.id, { duration: e.target.value })}
+                                      placeholder="2h"
+                                    />
+                                  </div>
+                                  <div className="form-control">
+                                    <label className="label label-text-alt">Cost ({getCurrencySymbol(currency)})</label>
+                                    <input
+                                      type="number"
+                                      className="input input-bordered input-sm"
+                                      value={activity.cost}
+                                      onChange={(e) => updateActivity(stop.id, activity.id, { cost: e.target.value })}
+                                      placeholder="0.00"
+                                    />
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <button
+                                      onClick={() => updateActivity(stop.id, activity.id, { completed: !activity.completed })}
+                                      className={`btn btn-sm ${activity.completed ? 'btn-success' : 'btn-outline'}`}
+                                      title={activity.completed ? "Mark incomplete" : "Mark complete"}
+                                    >
+                                      <CheckIcon className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => removeActivity(stop.id, activity.id)}
+                                      className="btn btn-sm btn-error btn-outline"
+                                      title="Remove activity"
+                                    >
+                                      <XIcon className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                                
+                                {/* Activity Details */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+                                  <div className="form-control">
+                                    <select
+                                      className="select select-bordered select-sm"
+                                      value={activity.category}
+                                      onChange={(e) => updateActivity(stop.id, activity.id, { category: e.target.value })}
+                                    >
+                                      <option value="">Select category</option>
+                                      {activityCategories.map(cat => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="form-control">
+                                    <select
+                                      className="select select-bordered select-sm"
+                                      value={activity.priority}
+                                      onChange={(e) => updateActivity(stop.id, activity.id, { priority: e.target.value })}
+                                    >
+                                      <option value="low">Low Priority</option>
+                                      <option value="medium">Medium Priority</option>
+                                      <option value="high">High Priority</option>
+                                    </select>
+                                  </div>
+                                  <div className="form-control">
+                                    <input
+                                      type="text"
+                                      className="input input-bordered input-sm"
+                                      value={activity.notes}
+                                      onChange={(e) => updateActivity(stop.id, activity.id, { notes: e.target.value })}
+                                      placeholder="Notes about this activity"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 border-2 border-dashed border-base-300 rounded-lg">
+                          <p className="text-lg opacity-70 mb-4">No activities planned yet</p>
+                          <div className="flex justify-center gap-2">
+                            <button
+                              onClick={() => addActivity(stop.id)}
+                              className="btn btn-primary btn-sm"
+                            >
+                              <PlusIcon className="w-4 h-4 mr-1" />
+                              Add First Activity
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedStopForTemplate(stop.id);
+                                setIsTemplateModalOpen(true);
+                              }}
+                              className="btn btn-outline btn-sm"
+                            >
+                              <StarIcon className="w-4 h-4 mr-1" />
+                              Use Template
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
 
-          <button className="btn btn-outline" onClick={addStop}>+ Add another Section</button>
+          {/* Add Stop Button */}
+          <div className="text-center">
+            <button onClick={addStop} className="btn btn-outline btn-lg">
+              <PlusIcon className="w-5 h-5 mr-2" />
+              Add Another Stop
+            </button>
+          </div>
+
+          {/* Activity Templates Modal */}
+          {isTemplateModalOpen && (
+            <div className="modal modal-open">
+              <div className="modal-box">
+                <h3 className="font-bold text-lg mb-4">Choose Activity Template</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {Object.keys(activityTemplates).map(category => (
+                    <button
+                      key={category}
+                      onClick={() => addTemplateActivities(selectedStopForTemplate, category)}
+                      className="btn btn-outline justify-start h-auto py-4"
+                    >
+                      <div className="text-left">
+                        <div className="font-semibold">{category}</div>
+                        <div className="text-xs opacity-70">
+                          {activityTemplates[category].length} activities
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="modal-action">
+                  <button className="btn" onClick={() => setIsTemplateModalOpen(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     </div>
   );
 };
 
-export default ItineraryBuilder;
-
-
+export default ItineraryBuilderEnhanced;

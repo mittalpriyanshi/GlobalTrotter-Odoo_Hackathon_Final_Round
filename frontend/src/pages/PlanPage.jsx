@@ -240,6 +240,38 @@ const PlanPage = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [dateError, setDateError] = useState("");
+
+  const validateDates = (startDate, endDate) => {
+    if (!startDate || !endDate) {
+      setDateError("");
+      return true;
+    }
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time for comparison
+    
+    if (start > end) {
+      setDateError("End date must be after start date");
+      return false;
+    }
+    
+    if (start < today) {
+      setDateError("Start date cannot be in the past");
+      return false;
+    }
+    
+    setDateError("");
+    return true;
+  };
+
+  const handleDateChange = (field, value) => {
+    const newForm = { ...form, [field]: value };
+    setForm(newForm);
+    validateDates(newForm.startDate, newForm.endDate);
+  };
 
   const handleImgError = (e) => {
     const name = e.currentTarget.getAttribute("data-name") || form.place || "travel";
@@ -293,22 +325,7 @@ const PlanPage = () => {
       <Navbar />
       <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-5xl mx-auto space-y-6">
-        {/* Header bar to match landing */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src="/icon1.png" alt="logo" className="w-7 h-7 rounded" />
-            <h1 className="text-xl sm:text-2xl font-bold">GlobalTrotter</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:block opacity-80">{fullName}</span>
-            <div className="avatar">
-              <div className="w-8 rounded-full ring ring-primary/40 ring-offset-base-100 ring-offset-2">
-                <img alt="avatar" src={avatar} />
-              </div>
-            </div>
-            <Link to="/onboarding" className="btn btn-outline btn-sm">Edit profile</Link>
-          </div>
-        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold">Plan your trip</h1>
 
         <div className="card bg-base-100 border border-primary/20">
           <div className="card-body grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -324,11 +341,23 @@ const PlanPage = () => {
             </div>
             <div className="form-control">
               <label className="label">Start Date</label>
-              <input type="date" className="input input-bordered" value={form.startDate} onChange={(e)=>setForm({...form, startDate:e.target.value})} />
+              <input 
+                type="date" 
+                className={`input input-bordered ${dateError ? 'input-error' : ''}`}
+                value={form.startDate} 
+                onChange={(e) => handleDateChange('startDate', e.target.value)}
+                min={new Date().toISOString().split('T')[0]} // Prevent past dates
+              />
             </div>
             <div className="form-control">
               <label className="label">End Date</label>
-              <input type="date" className="input input-bordered" value={form.endDate} onChange={(e)=>setForm({...form, endDate:e.target.value})} />
+              <input 
+                type="date" 
+                className={`input input-bordered ${dateError ? 'input-error' : ''}`}
+                value={form.endDate} 
+                onChange={(e) => handleDateChange('endDate', e.target.value)}
+                min={form.startDate || new Date().toISOString().split('T')[0]} // Ensure end date is after start date
+              />
             </div>
             <div className="form-control">
               <label className="label">Select a Place</label>
@@ -348,13 +377,24 @@ const PlanPage = () => {
                 <button className="btn btn-primary" onClick={handleFetch} disabled={loading}>
                   {loading ? <span className="loading loading-spinner loading-sm"></span> : "Fetch suggestions"}
                 </button>
-                <button className="btn btn-success" onClick={handleSave} disabled={!form.tripName || !form.place}>
+                <button 
+                  className="btn btn-success" 
+                  onClick={handleSave} 
+                  disabled={!form.tripName || !form.place || dateError}
+                >
                   Save trip
                 </button>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Date Error Display */}
+        {dateError && (
+          <div className="alert alert-error text-sm">
+            <span>⚠️ {dateError}</span>
+          </div>
+        )}
 
         <div className="space-y-2">
           <h2 className="text-lg font-semibold">Suggestions for Places to Visit / Activities to perform</h2>

@@ -1,0 +1,244 @@
+/* Global Responsive Utilities for GlobalTrotter */
+
+/* Mobile-first responsive breakpoints */
+@layer utilities {
+  /* Touch-friendly interactive elements */
+  .btn-touch {
+    @apply min-h-12 px-4 text-base;
+  }
+  
+  .btn-touch-sm {
+    @apply min-h-10 px-3 text-sm;
+  }
+  
+  /* Mobile optimized spacing */
+  .mobile-safe-area {
+    @apply pb-safe-bottom pl-safe-left pr-safe-right;
+  }
+  
+  /* Responsive card layouts */
+  .card-mobile {
+    @apply rounded-lg border border-primary/10 bg-base-100 shadow-sm;
+  }
+  
+  .card-mobile-compact {
+    @apply p-3 sm:p-4 lg:p-6;
+  }
+  
+  /* Mobile navigation utilities */
+  .nav-mobile-hidden {
+    @apply hidden lg:flex;
+  }
+  
+  .nav-mobile-only {
+    @apply flex lg:hidden;
+  }
+  
+  /* Responsive grid layouts */
+  .grid-responsive-2 {
+    @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+  }
+  
+  .grid-responsive-3 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+  
+  .grid-responsive-4 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4;
+  }
+  
+  /* Text responsive sizing */
+  .text-responsive-xl {
+    @apply text-xl sm:text-2xl lg:text-3xl;
+  }
+  
+  .text-responsive-lg {
+    @apply text-lg sm:text-xl lg:text-2xl;
+  }
+  
+  .text-responsive-base {
+    @apply text-sm sm:text-base lg:text-lg;
+  }
+  
+  /* Mobile form optimizations */
+  .form-mobile {
+    @apply space-y-3 sm:space-y-4;
+  }
+  
+  .input-mobile {
+    @apply input input-bordered text-base;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  .select-mobile {
+    @apply select select-bordered text-base;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  /* Modal responsive positioning */
+  .modal-mobile {
+    @apply modal-bottom sm:modal-middle;
+  }
+  
+  .modal-box-mobile {
+    @apply w-full max-w-full sm:max-w-lg sm:mx-auto rounded-t-2xl sm:rounded-2xl;
+  }
+  
+  /* Loading states for mobile */
+  .loading-mobile {
+    @apply loading loading-spinner loading-md text-primary;
+  }
+  
+  /* Mobile-friendly tables */
+  .table-mobile {
+    @apply table table-xs sm:table-sm lg:table-md;
+  }
+  
+  /* Responsive padding */
+  .container-mobile {
+    @apply px-3 sm:px-4 lg:px-6 xl:px-8;
+  }
+  
+  /* Mobile drawer utility */
+  .drawer-mobile {
+    @apply drawer lg:drawer-open;
+  }
+  
+  .drawer-side-mobile {
+    @apply drawer-side z-40;
+  }
+  
+  /* Tab responsive sizing */
+  .tabs-mobile {
+    @apply tabs tabs-boxed tabs-sm sm:tabs-md;
+  }
+  
+  .tab-mobile {
+    @apply tab tab-sm sm:tab-md;
+  }
+}
+
+/* Custom mobile optimizations */
+@media (max-width: 640px) {
+  /* Ensure buttons are touch-friendly */
+  .btn {
+    min-height: 2.5rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  /* Optimize select dropdowns for mobile */
+  .select {
+    font-size: 16px;
+  }
+  
+  /* Improve input accessibility */
+  .input {
+    font-size: 16px;
+  }
+  
+  /* Card spacing optimization */
+  .card-body {
+    padding: 1rem;
+  }
+  
+  /* Mobile navigation improvements */
+  .navbar {
+    min-height: 4rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Reduce modal padding on mobile */
+  .modal-box {
+    margin: 0;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  /* Optimize stat cards for mobile */
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .stat {
+    padding: 1rem 0.75rem;
+  }
+  
+  /* Mobile-friendly avatars */
+  .avatar {
+    width: 2rem;
+    height: 2rem;
+  }
+  
+  /* Compact badges */
+  .badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .card-body {
+    padding: 1.25rem;
+  }
+  
+  .stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Desktop optimizations */
+@media (min-width: 1025px) {
+  .card-body {
+    padding: 1.5rem;
+  }
+  
+  /* Enhanced hover states for desktop */
+  .card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+  }
+  
+  .btn:hover {
+    transform: translateY(-1px);
+    transition: transform 0.15s ease;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .card {
+    border-width: 2px;
+  }
+  
+  .btn {
+    border-width: 2px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .navbar,
+  .modal,
+  .drawer-side,
+  .btn {
+    display: none !important;
+  }
+  
+  .card {
+    border: 1px solid #000;
+    break-inside: avoid;
+  }
+}
+
