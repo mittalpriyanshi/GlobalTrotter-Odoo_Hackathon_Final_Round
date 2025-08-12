@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import useAuthUser from "../hooks/useAuthUser";
 import Navbar from "../components/Navbar";
 import { PlusIcon, EditIcon, TrashIcon, ImageIcon, CalendarIcon, MapPinIcon, BookOpenIcon, SearchIcon } from "lucide-react";

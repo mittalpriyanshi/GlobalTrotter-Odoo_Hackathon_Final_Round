@@ -1,9 +1,8 @@
-import { useState } from "react";
-
-import { Link, useNavigate } from "react-router";
-
-
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import useSignUp from "../hooks/useSignUp";
+import useAuthUser from "../hooks/useAuthUser";
+import toast from "react-hot-toast";
 
 const SignUpPage = () => {
   const [signupData, setSignupData] = useState({
@@ -12,26 +11,35 @@ const SignUpPage = () => {
     password: "",
   });
 
-  // This is how we did it at first, without using our custom hook
-  // const queryClient = useQueryClient();
-  // const {
-  //   mutate: signupMutation,
-  //   isPending,
-  //   error,
-  // } = useMutation({
-  //   mutationFn: signup,
-  //   onSuccess: () => queryClient.invalidateQueries({ queryKey: ["authUser"] }),
-  // });
-
-  // This is how we did it using our custom hook - optimized version
   const { isPending, error, signupMutation } = useSignUp();
+  const { authUser, isLoading } = useAuthUser();
   const navigate = useNavigate();
+
+  // Redirect if user is already authenticated
+  useEffect(() => {
+    if (!isLoading && authUser) {
+      // If user is authenticated but not onboarded, go to onboarding
+      if (!authUser.isOnboarded) {
+        navigate("/onboarding");
+      } else {
+        // If user is fully authenticated and onboarded, go to landing
+        navigate("/landing");
+      }
+    }
+  }, [authUser, isLoading, navigate]);
+
+  // Show error toast when signup fails
+  useEffect(() => {
+    if (error) {
+      const errorMessage = error.response?.data?.message || error.message || "Signup failed";
+      toast.error(errorMessage);
+    }
+  }, [error]);
 
   const handleSignup = (e) => {
     e.preventDefault();
     signupMutation(signupData);
-    // Navigate immediately to onboarding for a seamless flow
-    navigate("/onboarding");
+    // Don't navigate here - let the useSignUp hook handle navigation with proper data
   };
 
   return (
@@ -58,7 +66,9 @@ const SignUpPage = () => {
           {/* ERROR MESSAGE IF ANY */}
           {error && (
             <div className="alert alert-error mb-4">
-              <span>{error.response.data.message}</span>
+              <span>
+                {error.response?.data?.message || error.message || "Signup failed. Please try again."}
+              </span>
             </div>
           )}
 

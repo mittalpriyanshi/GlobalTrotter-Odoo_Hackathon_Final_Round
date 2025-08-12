@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import useLogin from "../hooks/useLogin";
+import useAuthUser from "../hooks/useAuthUser";
+import toast from "react-hot-toast";
 
 const LoginPage = () => {
   const [loginData, setLoginData] = useState({
@@ -8,26 +10,33 @@ const LoginPage = () => {
     password: "",
   });
 
-  // This is how we did it at first, without using our custom hook
-  // const queryClient = useQueryClient();
-  // const {
-  //   mutate: loginMutation,
-  //   isPending,
-  //   error,
-  // } = useMutation({
-  //   mutationFn: login,
-  //   onSuccess: () => queryClient.invalidateQueries({ queryKey: ["authUser"] }),
-  // });
-
-  // This is how we did it using our custom hook - optimized version
   const { isPending, error, loginMutation } = useLogin();
+  const { authUser, isLoading } = useAuthUser();
   const navigate = useNavigate();
+
+  // Redirect if user is already authenticated
+  useEffect(() => {
+    if (!isLoading && authUser) {
+      if (!authUser.isOnboarded) {
+        navigate("/onboarding");
+      } else {
+        navigate("/landing");
+      }
+    }
+  }, [authUser, isLoading, navigate]);
+
+  // Show error toast when login fails
+  useEffect(() => {
+    if (error) {
+      const errorMessage = error.response?.data?.message || error.message || "Login failed";
+      toast.error(errorMessage);
+    }
+  }, [error]);
 
   const handleLogin = (e) => {
     e.preventDefault();
     loginMutation(loginData);
-    // Immediate redirect to landing for your current requirement
-    navigate("/landing");
+    // Don't navigate here - let the useLogin hook handle navigation with proper routing
   };
 
   return (
@@ -95,6 +104,15 @@ const LoginPage = () => {
                       required
                     />
                   </div>
+
+                  {/* Error Display */}
+                  {error && (
+                    <div className="alert alert-error">
+                      <span className="text-sm">
+                        {error.response?.data?.message || error.message || "Login failed. Please try again."}
+                      </span>
+                    </div>
+                  )}
 
                   <button type="submit" className="btn btn-primary w-full" disabled={isPending}>
                     {isPending ? (
