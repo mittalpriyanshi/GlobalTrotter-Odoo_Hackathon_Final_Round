@@ -1,5 +1,17 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { 
+  getUserTrips, 
+  getUserExpenses, 
+  createExpense, 
+  updateExpense, 
+  deleteExpense as deleteExpenseAPI,
+  getUserBudgets,
+  createBudget,
+  updateBudget,
+  deleteBudget
+} from "../lib/api";
 import useAuthUser from "../hooks/useAuthUser";
 import Navbar from "../components/Navbar";
 import { PlusIcon, EditIcon, TrashIcon, DollarSignIcon, PieChartIcon, TrendingUpIcon, CalendarIcon } from "lucide-react";
@@ -7,15 +19,13 @@ import toast from "react-hot-toast";
 
 const ExpensePage = () => {
   const { authUser } = useAuthUser();
-  const [expenses, setExpenses] = useState([]);
-  const [budgets, setBudgets] = useState([]);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isAddBudgetOpen, setIsAddBudgetOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState("");
-  const [savedTrips, setSavedTrips] = useState([]);
+  const queryClient = useQueryClient();
   
   const [newExpense, setNewExpense] = useState({
-    tripId: "",
+    trip: "",
     category: "",
     amount: "",
     description: "",
@@ -24,7 +34,7 @@ const ExpensePage = () => {
   });
 
   const [newBudget, setNewBudget] = useState({
-    tripId: "",
+    trip: "",
     category: "",
     amount: "",
     currency: "USD"
@@ -37,79 +47,118 @@ const ExpensePage = () => {
 
   const currencies = ["USD", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY", "INR"];
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // Fetch data from backend APIs
+  const { data: tripsData } = useQuery({
+    queryKey: ["userTrips"],
+    queryFn: getUserTrips,
+    enabled: !!authUser,
+  });
 
-  const loadData = () => {
-    const trips = JSON.parse(localStorage.getItem("gt_trips") || "[]");
-    const expenseData = JSON.parse(localStorage.getItem("gt_expenses") || "[]");
-    const budgetData = JSON.parse(localStorage.getItem("gt_budgets") || "[]");
-    
-    setSavedTrips(trips);
-    setExpenses(expenseData);
-    setBudgets(budgetData);
-  };
+  const { data: expensesData, isLoading: expensesLoading } = useQuery({
+    queryKey: ["userExpenses"],
+    queryFn: getUserExpenses,
+    enabled: !!authUser,
+  });
+
+  const { data: budgetsData, isLoading: budgetsLoading } = useQuery({
+    queryKey: ["userBudgets"],
+    queryFn: getUserBudgets,
+    enabled: !!authUser,
+  });
+
+  const savedTrips = tripsData?.trips || [];
+  const expenses = expensesData?.expenses || [];
+  const budgets = budgetsData?.budgets || [];
+
+  // Mutations for expenses
+  const createExpenseMutation = useMutation({
+    mutationFn: createExpense,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["userExpenses"]);
+      toast.success("Expense added successfully");
+      setIsAddExpenseOpen(false);
+      setNewExpense({
+        trip: "",
+        category: "",
+        amount: "",
+        description: "",
+        date: "",
+        currency: "USD"
+      });
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to add expense");
+    }
+  });
+
+  const deleteExpenseMutation = useMutation({
+    mutationFn: deleteExpenseAPI,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["userExpenses"]);
+      toast.success("Expense deleted successfully");
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to delete expense");
+    }
+  });
+
+  // Mutations for budgets
+  const createBudgetMutation = useMutation({
+    mutationFn: createBudget,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["userBudgets"]);
+      toast.success("Budget added successfully");
+      setIsAddBudgetOpen(false);
+      setNewBudget({
+        trip: "",
+        category: "",
+        amount: "",
+        currency: "USD"
+      });
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to add budget");
+    }
+  });
 
   const addExpense = () => {
-    if (!newExpense.tripId || !newExpense.category || !newExpense.amount) {
+    if (!newExpense.trip || !newExpense.category || !newExpense.amount) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    const expense = {
-      id: Date.now(),
-      ...newExpense,
+    const expenseData = {
+      tripId: newExpense.trip, // Backend expects tripId
+      category: newExpense.category,
       amount: parseFloat(newExpense.amount),
-      createdAt: new Date().toISOString()
+      description: newExpense.description,
+      date: newExpense.date || new Date().toISOString().split('T')[0],
+      currency: newExpense.currency || "USD"
     };
 
-    const updatedExpenses = [...expenses, expense];
-    localStorage.setItem("gt_expenses", JSON.stringify(updatedExpenses));
-    setExpenses(updatedExpenses);
-    setNewExpense({
-      tripId: "",
-      category: "",
-      amount: "",
-      description: "",
-      date: "",
-      currency: "USD"
-    });
-    setIsAddExpenseOpen(false);
-    toast.success("Expense added successfully");
+    createExpenseMutation.mutate(expenseData);
   };
 
   const addBudget = () => {
-    if (!newBudget.tripId || !newBudget.category || !newBudget.amount) {
+    if (!newBudget.trip || !newBudget.category || !newBudget.amount) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    const budget = {
-      id: Date.now(),
-      ...newBudget,
+    const budgetData = {
+      tripId: newBudget.trip, // Backend expects tripId
+      category: newBudget.category,
       amount: parseFloat(newBudget.amount),
-      createdAt: new Date().toISOString()
+      currency: newBudget.currency || "USD"
     };
 
-    const updatedBudgets = [...budgets, budget];
-    localStorage.setItem("gt_budgets", JSON.stringify(updatedBudgets));
-    setBudgets(updatedBudgets);
-    setNewBudget({
-      tripId: "",
-      category: "",
-      amount: "",
-      currency: "USD"
-    });
-    setIsAddBudgetOpen(false);
-    toast.success("Budget added successfully");
+    createBudgetMutation.mutate(budgetData);
   };
 
-  const deleteExpense = (expenseId) => {
-    const updatedExpenses = expenses.filter(expense => expense.id !== expenseId);
-    localStorage.setItem("gt_expenses", JSON.stringify(updatedExpenses));
-    setExpenses(updatedExpenses);
-    toast.success("Expense deleted");
+  const handleDeleteExpense = (expenseId) => {
+    if (confirm("Are you sure you want to delete this expense?")) {
+      deleteExpenseMutation.mutate(expenseId);
+    }
   };
 
   const deleteBudget = (budgetId) => {
@@ -121,11 +170,11 @@ const ExpensePage = () => {
 
   const getFilteredData = () => {
     const filteredExpenses = selectedTrip 
-      ? expenses.filter(expense => expense.tripId === selectedTrip)
+      ? expenses.filter(expense => expense.trip === selectedTrip || expense.trip?._id === selectedTrip)
       : expenses;
     
     const filteredBudgets = selectedTrip 
-      ? budgets.filter(budget => budget.tripId === selectedTrip)
+      ? budgets.filter(budget => budget.trip === selectedTrip || budget.trip?._id === selectedTrip)
       : budgets;
 
     return { filteredExpenses, filteredBudgets };
@@ -167,8 +216,14 @@ const ExpensePage = () => {
   const stats = calculateStats();
   const { filteredExpenses, filteredBudgets } = getFilteredData();
 
-  const getTripName = (tripId) => {
-    const trip = savedTrips.find(trip => trip.id.toString() === tripId);
+  const getTripName = (tripData) => {
+    if (typeof tripData === 'object' && tripData?.tripName) {
+      return tripData.tripName;
+    }
+    const trip = savedTrips.find(trip => 
+      trip.id?.toString() === tripData?.toString() || 
+      trip._id?.toString() === tripData?.toString()
+    );
     return trip ? trip.tripName : "Unknown Trip";
   };
 
@@ -178,6 +233,18 @@ const ExpensePage = () => {
         <Navbar />
         <div className="flex items-center justify-center h-64">
           <p className="text-lg opacity-70">Please log in to track your expenses.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (expensesLoading || budgetsLoading) {
+    return (
+      <div className="min-h-screen" data-theme="retro">
+        <Navbar />
+        <div className="flex items-center justify-center h-64">
+          <div className="loading loading-spinner loading-lg"></div>
+          <p className="ml-4 text-lg opacity-70">Loading your financial data...</p>
         </div>
       </div>
     );
@@ -227,7 +294,7 @@ const ExpensePage = () => {
                 >
                   <option value="">All Trips</option>
                   {savedTrips.map(trip => (
-                    <option key={trip.id} value={trip.id.toString()}>
+                    <option key={trip._id || trip.id} value={(trip._id || trip.id).toString()}>
                       {trip.tripName}
                     </option>
                   ))}
@@ -390,9 +457,9 @@ const ExpensePage = () => {
                         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
                         .slice(0, 10)
                         .map(expense => (
-                          <tr key={expense.id}>
+                          <tr key={expense._id || expense.id}>
                             <td>{expense.date || 'N/A'}</td>
-                            <td>{getTripName(expense.tripId)}</td>
+                            <td>{getTripName(expense.trip)}</td>
                             <td>
                               <div className="badge badge-outline">{expense.category}</div>
                             </td>
@@ -440,12 +507,12 @@ const ExpensePage = () => {
                     </label>
                     <select
                       className="select select-bordered"
-                      value={newExpense.tripId}
-                      onChange={(e) => setNewExpense({...newExpense, tripId: e.target.value})}
+                      value={newExpense.trip}
+                      onChange={(e) => setNewExpense({...newExpense, trip: e.target.value})}
                     >
                       <option value="">Select a trip</option>
                       {savedTrips.map(trip => (
-                        <option key={trip.id} value={trip.id.toString()}>
+                        <option key={trip._id || trip.id} value={(trip._id || trip.id).toString()}>
                           {trip.tripName}
                         </option>
                       ))}
@@ -556,12 +623,12 @@ const ExpensePage = () => {
                     </label>
                     <select
                       className="select select-bordered"
-                      value={newBudget.tripId}
-                      onChange={(e) => setNewBudget({...newBudget, tripId: e.target.value})}
+                      value={newBudget.trip}
+                      onChange={(e) => setNewBudget({...newBudget, trip: e.target.value})}
                     >
                       <option value="">Select a trip</option>
                       {savedTrips.map(trip => (
-                        <option key={trip.id} value={trip.id.toString()}>
+                        <option key={trip._id || trip.id} value={(trip._id || trip.id).toString()}>
                           {trip.tripName}
                         </option>
                       ))}

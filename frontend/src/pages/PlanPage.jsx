@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import useAuthUser from "../hooks/useAuthUser";
 import toast from "react-hot-toast";
 import Navbar from "../components/Navbar";
@@ -296,20 +296,53 @@ const PlanPage = () => {
     setLoading(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.tripName || !form.place) {
       toast.error("Please enter a trip name and place before saving.");
       return;
     }
-    const existing = JSON.parse(localStorage.getItem("gt_trips") || "[]");
-    const newTrip = {
-      id: Date.now(),
-      ...form,
-      suggestions,
-      createdAt: new Date().toISOString(),
-    };
-    localStorage.setItem("gt_trips", JSON.stringify([newTrip, ...existing]));
-    toast.success("Trip saved!");
+    
+    try {
+      const { createTrip } = await import("../lib/api");
+      const newTripData = {
+        tripName: form.tripName,
+        place: form.place,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        budget: form.budget || 0,
+        description: form.description || "",
+        suggestions: (suggestions || []).map(s => ({
+          id: s.xid || `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          name: s.name || "Unnamed Place",
+          kinds: s.kinds || "attraction",
+          image: s.image || "",
+          wikiPageId: s.wikipedia || "",
+          cost: 0,
+          duration: "1 hour",
+          category: s.kinds || "attraction",
+          notes: s.extract || s.snippet || "",
+          isSelected: false
+        }))
+      };
+      
+      const response = await createTrip(newTripData);
+      if (response.success) {
+        toast.success("Trip saved successfully!");
+        // Reset form
+        setForm({
+          tripName: "",
+          place: "",
+          startDate: "",
+          endDate: "",
+          budget: "",
+          description: ""
+        });
+        setSuggestions([]);
+      }
+    } catch (error) {
+      console.error("Error saving trip:", error);
+      toast.error(error.response?.data?.message || "Failed to save trip. Please try again.");
+    }
   };
 
   useEffect(() => {

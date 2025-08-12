@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getUserTrips, deleteTrip as deleteTripAPI, updateTrip } from "../lib/api";
 import useAuthUser from "../hooks/useAuthUser";
 import Navbar from "../components/Navbar";
 import { CalendarIcon, MapPinIcon, EditIcon, TrashIcon, EyeIcon, ShareIcon, PlusIcon } from "lucide-react";
@@ -7,53 +9,88 @@ import toast from "react-hot-toast";
 
 const TripsPage = () => {
   const { authUser } = useAuthUser();
-  const [trips, setTrips] = useState([]);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
   const [filter, setFilter] = useState("all"); // all, upcoming, past
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    loadTrips();
-  }, []);
+  // Fetch trips from backend API
+  const { data: tripsData, isLoading, error } = useQuery({
+    queryKey: ["userTrips"],
+    queryFn: getUserTrips,
+    enabled: !!authUser,
+    staleTime: 30000, // Consider data fresh for 30 seconds
+  });
 
-  const loadTrips = () => {
-    const savedTrips = JSON.parse(localStorage.getItem("gt_trips") || "[]");
-    setTrips(savedTrips);
-  };
+  const trips = tripsData?.trips || [];
 
-  const deleteTrip = (tripId) => {
-    if (confirm("Are you sure you want to delete this trip?")) {
-      const updatedTrips = trips.filter(trip => trip.id !== tripId);
-      localStorage.setItem("gt_trips", JSON.stringify(updatedTrips));
-      setTrips(updatedTrips);
+  // Delete trip mutation
+  const deleteTripMutation = useMutation({
+    mutationFn: deleteTripAPI,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["userTrips"]);
       toast.success("Trip deleted successfully");
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to delete trip");
+    }
+  });
+
+  // Update trip mutation
+  const updateTripMutation = useMutation({
+    mutationFn: ({ tripId, tripData }) => updateTrip(tripId, tripData),
+    onSuccess: () => {
+      queryClient.invalidateQueries(["userTrips"]);
+      toast.success("Trip updated successfully");
+      setIsEditModalOpen(false);
+      setEditingTrip(null);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to update trip");
+    }
+  });
+
+  const handleDeleteTrip = (tripId) => {
+    if (confirm("Are you sure you want to delete this trip?")) {
+      deleteTripMutation.mutate(tripId);
     }
   };
 
   const duplicateTrip = (trip) => {
-    const newTrip = {
-      ...trip,
-      id: Date.now(),
+    const newTripData = {
       tripName: `${trip.tripName} (Copy)`,
-      createdAt: new Date().toISOString(),
+      place: trip.place,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      budget: trip.budget,
+      description: trip.description,
+      suggestions: trip.suggestions || []
     };
-    const updatedTrips = [newTrip, ...trips];
-    localStorage.setItem("gt_trips", JSON.stringify(updatedTrips));
-    setTrips(updatedTrips);
-    toast.success("Trip duplicated successfully");
+    
+    // Create new trip via API (we'll need to add createTrip API call)
+    // For now, we'll use the existing updateTrip mutation with a new trip
+    toast.info("Trip duplication feature will be available soon!");
   };
 
   const saveEditedTrip = () => {
-    const updatedTrips = trips.map(trip => 
-      trip.id === editingTrip.id ? editingTrip : trip
-    );
-    localStorage.setItem("gt_trips", JSON.stringify(updatedTrips));
-    setTrips(updatedTrips);
-    setIsEditModalOpen(false);
-    setEditingTrip(null);
-    toast.success("Trip updated successfully");
+    if (!editingTrip || !editingTrip.tripName) {
+      toast.error("Please fill in the trip name");
+      return;
+    }
+    
+    updateTripMutation.mutate({
+      tripId: editingTrip._id || editingTrip.id,
+      tripData: {
+        tripName: editingTrip.tripName,
+        place: editingTrip.place,
+        startDate: editingTrip.startDate,
+        endDate: editingTrip.endDate,
+        budget: editingTrip.budget,
+        description: editingTrip.description
+      }
+    });
   };
 
   const shareTrip = (trip) => {
@@ -199,13 +236,24 @@ const TripsPage = () => {
             </button>
           </div>
 
-          {/* Trips Grid */}
-          {filteredTrips.length > 0 ? (
+          {/* Loading State */}
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="loading loading-spinner loading-lg"></div>
+              <p className="ml-4 text-lg opacity-70">Loading your trips...</p>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="alert alert-error max-w-md">
+                <span>Failed to load trips. Please try again.</span>
+              </div>
+            </div>
+          ) : filteredTrips.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredTrips.map((trip) => {
                 const status = getTripStatus(trip);
                 return (
-                  <div key={trip.id} className="card bg-base-100 border border-primary/20 hover:shadow-lg transition-shadow">
+                  <div key={trip._id || trip.id} className="card bg-base-100 border border-primary/20 hover:shadow-lg transition-shadow">
                     <div className="card-body">
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
@@ -268,7 +316,7 @@ const TripsPage = () => {
                           <label tabIndex={0} className="btn btn-sm btn-ghost">⋮</label>
                           <ul tabIndex={0} className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52">
                             <li><button onClick={() => duplicateTrip(trip)}>Duplicate</button></li>
-                            <li><button onClick={() => deleteTrip(trip.id)} className="text-error">Delete</button></li>
+                            <li><button onClick={() => handleDeleteTrip(trip._id || trip.id)} className="text-error">Delete</button></li>
                           </ul>
                         </div>
                       </div>

@@ -1,173 +1,122 @@
 import { useState, useEffect } from "react";
 import { BellIcon, XIcon, CalendarIcon, DollarSignIcon, MapPinIcon, CheckIcon } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "../lib/api";
 import useAuthUser from "../hooks/useAuthUser";
+import toast from "react-hot-toast";
 
 const NotificationCenter = () => {
   const { authUser } = useAuthUser();
-  const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const queryClient = useQueryClient();
 
+  // Fetch notifications from backend
+  const { data: notificationsData, isLoading, error } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => getNotifications({ limit: 50 }),
+    enabled: !!authUser,
+    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 10000, // Consider data stale after 10 seconds
+  });
+
+  const notifications = notificationsData?.notifications || [];
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Mark single notification as read
+  const markAsReadMutation = useMutation({
+    mutationFn: markNotificationAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["notifications"]);
+    },
+    onError: (error) => {
+      toast.error("Failed to mark notification as read");
+      console.error("Mark as read error:", error);
+    }
+  });
+
+  // Mark all notifications as read
+  const markAllAsReadMutation = useMutation({
+    mutationFn: markAllNotificationsAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["notifications"]);
+      toast.success("All notifications marked as read");
+    },
+    onError: (error) => {
+      toast.error("Failed to mark all notifications as read");
+      console.error("Mark all as read error:", error);
+    }
+  });
+
+  // Fallback to local notifications if backend fails
   useEffect(() => {
-    if (authUser) {
-      generateNotifications();
+    if (error && authUser) {
+      console.warn("Backend notifications failed, using local fallback");
+      generateLocalNotifications();
     }
-  }, [authUser]);
+  }, [error, authUser]);
 
-  const generateNotifications = () => {
-    const trips = JSON.parse(localStorage.getItem("gt_trips") || "[]");
-    const expenses = JSON.parse(localStorage.getItem("gt_expenses") || "[]");
-    const existingNotifications = JSON.parse(localStorage.getItem("gt_notifications") || "[]");
-    
-    const newNotifications = [];
-    const today = new Date();
-    const oneWeekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-    // Trip reminder notifications
-    trips.forEach(trip => {
-      if (trip.startDate) {
-        const tripDate = new Date(trip.startDate);
-        const daysUntilTrip = Math.ceil((tripDate - today) / (1000 * 60 * 60 * 24));
-        
-        if (daysUntilTrip === 7) {
-          newNotifications.push({
-            id: `trip-reminder-${trip.id}`,
-            type: "trip-reminder",
-            title: "Trip Coming Up!",
-            message: `Your trip "${trip.tripName}" to ${trip.place} starts in 1 week`,
-            icon: CalendarIcon,
-            timestamp: new Date().toISOString(),
-            read: false,
-            actionUrl: "/trips"
-          });
-        } else if (daysUntilTrip === 1) {
-          newNotifications.push({
-            id: `trip-tomorrow-${trip.id}`,
-            type: "trip-tomorrow",
-            title: "Trip Tomorrow!",
-            message: `Don't forget - your trip "${trip.tripName}" starts tomorrow!`,
-            icon: CalendarIcon,
-            timestamp: new Date().toISOString(),
-            read: false,
-            actionUrl: "/trips"
-          });
-        }
+  // Local fallback notification generation
+  const generateLocalNotifications = () => {
+    console.log("Generating local notifications as fallback");
+    // Simple local notifications for demo
+    const localNotifications = [
+      {
+        id: "welcome",
+        type: "info",
+        title: "Welcome to GlobalTrotter!",
+        message: "Start planning your next adventure by creating a trip.",
+        timestamp: new Date().toISOString(),
+        read: false
       }
-    });
+    ];
+    return localNotifications;
+  };
 
-    // Budget alert notifications
-    const budgets = JSON.parse(localStorage.getItem("gt_budgets") || "[]");
-    budgets.forEach(budget => {
-      const tripExpenses = expenses.filter(expense => 
-        expense.tripId === budget.tripId && expense.category === budget.category
-      );
-      const totalSpent = tripExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-      const percentageSpent = (totalSpent / budget.amount) * 100;
-
-      if (percentageSpent >= 80 && percentageSpent < 100) {
-        newNotifications.push({
-          id: `budget-warning-${budget.id}`,
-          type: "budget-warning",
-          title: "Budget Alert",
-          message: `You've spent ${percentageSpent.toFixed(0)}% of your ${budget.category} budget`,
-          icon: DollarSignIcon,
-          timestamp: new Date().toISOString(),
-          read: false,
-          actionUrl: "/expenses"
-        });
-      } else if (percentageSpent >= 100) {
-        newNotifications.push({
-          id: `budget-exceeded-${budget.id}`,
-          type: "budget-exceeded",
-          title: "Budget Exceeded!",
-          message: `You've exceeded your ${budget.category} budget by ${(percentageSpent - 100).toFixed(0)}%`,
-          icon: DollarSignIcon,
-          timestamp: new Date().toISOString(),
-          read: false,
-          actionUrl: "/expenses"
-        });
-      }
-    });
-
-    // Weather reminder notifications
-    trips.forEach(trip => {
-      if (trip.startDate) {
-        const tripDate = new Date(trip.startDate);
-        const daysUntilTrip = Math.ceil((tripDate - today) / (1000 * 60 * 60 * 24));
-        
-        if (daysUntilTrip === 3) {
-          newNotifications.push({
-            id: `weather-check-${trip.id}`,
-            type: "weather-reminder",
-            title: "Check the Weather",
-            message: `Don't forget to check the weather for ${trip.place} before your trip!`,
-            icon: MapPinIcon,
-            timestamp: new Date().toISOString(),
-            read: false,
-            actionUrl: "/trips"
-          });
-        }
-      }
-    });
-
-    // Filter out notifications that already exist
-    const filteredNotifications = newNotifications.filter(newNotif => 
-      !existingNotifications.some(existing => existing.id === newNotif.id)
-    );
-
-    if (filteredNotifications.length > 0) {
-      const allNotifications = [...filteredNotifications, ...existingNotifications]
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, 50); // Keep only the latest 50 notifications
-
-      localStorage.setItem("gt_notifications", JSON.stringify(allNotifications));
-      setNotifications(allNotifications);
-    } else {
-      setNotifications(existingNotifications);
+  // Handle marking notification as read
+  const handleMarkAsRead = (notificationId) => {
+    if (error) {
+      // Local fallback
+      console.log("Marking notification as read locally:", notificationId);
+      return;
     }
-
-    // Update unread count
-    const unread = [...filteredNotifications, ...existingNotifications].filter(n => !n.read).length;
-    setUnreadCount(unread);
+    markAsReadMutation.mutate(notificationId);
   };
 
-  const markAsRead = (notificationId) => {
-    const updatedNotifications = notifications.map(notif => 
-      notif.id === notificationId ? { ...notif, read: true } : notif
-    );
-    localStorage.setItem("gt_notifications", JSON.stringify(updatedNotifications));
-    setNotifications(updatedNotifications);
-    setUnreadCount(prev => Math.max(0, prev - 1));
+  // Handle marking all as read
+  const handleMarkAllAsRead = () => {
+    if (error) {
+      // Local fallback
+      console.log("Marking all notifications as read locally");
+      return;
+    }
+    markAllAsReadMutation.mutate();
   };
 
-  const markAllAsRead = () => {
-    const updatedNotifications = notifications.map(notif => ({ ...notif, read: true }));
-    localStorage.setItem("gt_notifications", JSON.stringify(updatedNotifications));
-    setNotifications(updatedNotifications);
-    setUnreadCount(0);
-  };
-
-  const deleteNotification = (notificationId) => {
-    const updatedNotifications = notifications.filter(notif => notif.id !== notificationId);
-    localStorage.setItem("gt_notifications", JSON.stringify(updatedNotifications));
-    setNotifications(updatedNotifications);
-    
-    const deletedNotif = notifications.find(n => n.id === notificationId);
-    if (deletedNotif && !deletedNotif.read) {
-      setUnreadCount(prev => Math.max(0, prev - 1));
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case "trip_reminder":
+      case "trip_update":
+        return CalendarIcon;
+      case "budget_alert":
+      case "expense_alert":
+        return DollarSignIcon;
+      case "weather_alert":
+        return MapPinIcon;
+      default:
+        return BellIcon;
     }
   };
 
   const getNotificationColor = (type) => {
     switch (type) {
-      case "trip-reminder":
-      case "trip-tomorrow":
+      case "trip_reminder":
+      case "trip_update":
         return "alert-info";
-      case "budget-warning":
+      case "budget_alert":
         return "alert-warning";
-      case "budget-exceeded":
+      case "expense_alert":
         return "alert-error";
-      case "weather-reminder":
+      case "weather_alert":
         return "alert-success";
       default:
         return "alert-info";
@@ -175,6 +124,7 @@ const NotificationCenter = () => {
   };
 
   const formatTimestamp = (timestamp) => {
+    try {
     const date = new Date(timestamp);
     const now = new Date();
     const diffInHours = (now - date) / (1000 * 60 * 60);
@@ -185,6 +135,9 @@ const NotificationCenter = () => {
       return `${Math.floor(diffInHours)}h ago`;
     } else {
       return `${Math.floor(diffInHours / 24)}d ago`;
+      }
+    } catch (error) {
+      return "Recently";
     }
   };
 
@@ -194,8 +147,9 @@ const NotificationCenter = () => {
     <div className="dropdown dropdown-end">
       <label
         tabIndex={0}
-        className="btn btn-ghost btn-circle"
+        className="btn btn-ghost btn-circle hover:bg-primary/10"
         onClick={() => setIsOpen(!isOpen)}
+        title="Notifications"
       >
         <div className="indicator">
           <BellIcon className="w-5 h-5" />
@@ -208,17 +162,21 @@ const NotificationCenter = () => {
       </label>
 
       {isOpen && (
-        <div className="dropdown-content mt-3 z-[1] card card-compact w-96 p-2 shadow bg-base-100 border border-primary/20">
+        <div 
+          className="dropdown-content mt-3 z-50 card card-compact w-96 max-w-sm p-2 shadow-xl bg-base-100 border border-primary/20 rounded-lg"
+          style={{ position: 'absolute', right: 0 }}
+        >
           <div className="card-body p-0">
             <div className="flex items-center justify-between p-4 border-b border-base-300">
               <h3 className="font-bold text-lg">Notifications</h3>
               <div className="flex gap-2">
                 {unreadCount > 0 && (
                   <button
-                    onClick={markAllAsRead}
+                    onClick={handleMarkAllAsRead}
                     className="btn btn-ghost btn-xs"
+                    disabled={markAllAsReadMutation.isPending}
                   >
-                    Mark all read
+                    {markAllAsReadMutation.isPending ? "..." : "Mark all read"}
                   </button>
                 )}
                 <button
@@ -231,52 +189,54 @@ const NotificationCenter = () => {
             </div>
 
             <div className="max-h-96 overflow-y-auto">
-              {notifications.length > 0 ? (
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <div className="loading loading-spinner loading-md"></div>
+                  <p className="text-sm opacity-70 mt-2">Loading notifications...</p>
+                </div>
+              ) : error ? (
+                <div className="text-center py-8">
+                  <BellIcon className="w-12 h-12 mx-auto opacity-30 mb-4" />
+                  <p className="text-sm opacity-70">Unable to load notifications</p>
+                  <p className="text-xs opacity-50">Using local mode</p>
+                </div>
+              ) : notifications.length > 0 ? (
                 <div className="space-y-2 p-2">
                   {notifications.slice(0, 10).map((notification) => {
-                    const IconComponent = notification.icon;
+                    const IconComponent = getNotificationIcon(notification.type);
                     return (
                       <div
-                        key={notification.id}
+                        key={notification.id || notification._id}
                         className={`alert ${getNotificationColor(notification.type)} ${
                           notification.read ? "opacity-60" : ""
-                        } p-3`}
+                        } p-3 cursor-pointer hover:bg-opacity-80`}
                       >
-                        <IconComponent className="w-5 h-5" />
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">
-                            {notification.title}
+                        <IconComponent className="w-5 h-5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">
+                            {notification.title || notification.message?.split('.')[0]}
                           </div>
-                          <div className="text-xs opacity-80">
+                          <div className="text-xs opacity-80 line-clamp-2">
                             {notification.message}
                           </div>
                           <div className="text-xs opacity-60 mt-1">
-                            {formatTimestamp(notification.timestamp)}
+                            {formatTimestamp(notification.createdAt || notification.timestamp)}
                           </div>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 flex-shrink-0">
                           {!notification.read && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                markAsRead(notification.id);
+                                handleMarkAsRead(notification.id || notification._id);
                               }}
                               className="btn btn-ghost btn-xs"
                               title="Mark as read"
+                              disabled={markAsReadMutation.isPending}
                             >
                               <CheckIcon className="w-3 h-3" />
                             </button>
                           )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteNotification(notification.id);
-                            }}
-                            className="btn btn-ghost btn-xs text-error"
-                            title="Delete"
-                          >
-                            <XIcon className="w-3 h-3" />
-                          </button>
                         </div>
                       </div>
                     );
@@ -286,13 +246,17 @@ const NotificationCenter = () => {
                 <div className="text-center py-8">
                   <BellIcon className="w-12 h-12 mx-auto opacity-30 mb-4" />
                   <p className="text-sm opacity-70">No notifications yet</p>
+                  <p className="text-xs opacity-50">Start using the app to receive updates!</p>
                 </div>
               )}
             </div>
 
             {notifications.length > 10 && (
               <div className="p-4 border-t border-base-300 text-center">
-                <button className="btn btn-ghost btn-sm">
+                <button 
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setIsOpen(false)}
+                >
                   View all notifications
                 </button>
               </div>

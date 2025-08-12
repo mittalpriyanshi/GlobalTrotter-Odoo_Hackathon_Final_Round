@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import useAuthUser from "../hooks/useAuthUser";
 import Navbar from "../components/Navbar";
@@ -124,17 +124,6 @@ const LandingPage = () => {
           }}
         />
 
-        {/* Top Regional Selections */}
-        {/* <section className="space-y-3">
-          {/* <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Top Regional Selections</h2>
-          </div> */}
-          {/* <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Card key={`top-${i}`} title={`Destination ${i + 1}`} />
-            ))}
-          </div> */}
-        {/* </section> */} 
 
         {/* Previous Trips / Featured Destinations */}
         <section className="space-y-4">
