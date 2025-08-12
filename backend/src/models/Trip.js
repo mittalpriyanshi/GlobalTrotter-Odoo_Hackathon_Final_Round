@@ -280,7 +280,7 @@ TripSchema.statics.getRecentTrips = function(userId, limit = 10) {
 
 TripSchema.statics.getTripStatistics = function(userId) {
   return this.aggregate([
-    { $match: { owner: mongoose.Types.ObjectId(userId) } },
+    { $match: { owner: new mongoose.Types.ObjectId(userId) } },
     {
       $group: {
         _id: '$status',

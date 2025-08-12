@@ -5,7 +5,21 @@ const Expense = require('../models/Expense');
 // Create new trip
 exports.createTrip = async (req, res) => {
   try {
+    console.log('Auth user object:', req.user);
+    console.log('User ID extraction:', {
+      '_id': req.user?._id,
+      'id': req.user?.id,
+      'user_type': typeof req.user
+    });
+    
     const userId = req.user._id || req.user.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User ID not found. Please log in again.'
+      });
+    }
     const {
       tripName,
       place,
@@ -28,6 +42,30 @@ exports.createTrip = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Trip name and destination are required'
+      });
+    }
+    
+    // Validate tripName and place are strings
+    if (typeof tripName !== 'string' || typeof place !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Trip name and place must be text values'
+      });
+    }
+    
+    // Validate budget is a number if provided
+    if (budget !== undefined && budget !== null && isNaN(Number(budget))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Budget must be a valid number'
+      });
+    }
+    
+    // Validate travelers is a number if provided
+    if (travelers !== undefined && travelers !== null && isNaN(Number(travelers))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Number of travelers must be a valid number'
       });
     }
 
@@ -59,25 +97,30 @@ exports.createTrip = async (req, res) => {
       place,
       startDate: startDateObj,
       endDate: endDateObj,
-      suggestions: suggestions ? suggestions.length : 0
+      budget,
+      currency,
+      travelers,
+      travelStyle,
+      suggestions: suggestions ? suggestions.length : 0,
+      suggestionsPreview: suggestions ? suggestions.slice(0, 2) : []
     });
 
     const trip = await Trip.create({
       owner: userId,
-      tripName,
-      place,
-      description,
+      tripName: tripName.trim(),
+      place: place.trim(),
+      description: description || '',
       startDate: startDateObj,
       endDate: endDateObj,
-      budget: budget || 0,
+      budget: Number(budget) || 0,
       currency: currency || 'USD',
-      travelers: travelers || 1,
+      travelers: Number(travelers) || 1,
       travelStyle: travelStyle || 'solo',
-      suggestions: suggestions || [],
+      suggestions: Array.isArray(suggestions) ? suggestions : [],
       transportation: transportation || {},
       accommodation: accommodation || {},
       tags: Array.isArray(tags) ? tags : [],
-      notes
+      notes: notes || ''
     });
 
     await trip.populate('owner', 'fullName profilePic location');
@@ -98,11 +141,18 @@ exports.createTrip = async (req, res) => {
     
     // Handle specific MongoDB errors
     if (err.name === 'ValidationError') {
-      const errors = Object.values(err.errors).map(e => e.message);
+      console.error('Mongoose validation error details:', err.errors);
+      const errors = Object.values(err.errors).map(e => ({
+        field: e.path,
+        message: e.message,
+        value: e.value
+      }));
+      console.error('Processed validation errors:', errors);
+      
       return res.status(400).json({
         success: false,
         message: 'Validation error',
-        errors
+        errors: errors.map(e => `${e.field}: ${e.message}`)
       });
     }
     

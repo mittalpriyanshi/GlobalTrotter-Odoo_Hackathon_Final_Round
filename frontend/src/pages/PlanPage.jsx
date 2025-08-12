@@ -236,7 +236,14 @@ const PlanPage = () => {
   const { authUser } = useAuthUser();
   const fullName = authUser?.fullName || "Traveler";
   const avatar = authUser?.profilePic || "/icon1.png";
-  const [form, setForm] = useState({ tripName: "", startDate: "", place: "", endDate: "" });
+  const [form, setForm] = useState({ 
+    tripName: "", 
+    startDate: "", 
+    place: "", 
+    endDate: "", 
+    budget: "", 
+    description: "" 
+  });
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -297,51 +304,84 @@ const PlanPage = () => {
   };
 
   const handleSave = async () => {
+    if (!authUser) {
+      toast.error("Please log in to save your trip.");
+      return;
+    }
+    
     if (!form.tripName || !form.place) {
       toast.error("Please enter a trip name and place before saving.");
       return;
     }
     
+    // Validate dates if provided
+    if (!validateDates(form.startDate, form.endDate)) {
+      toast.error("Please check your dates - " + dateError);
+      return;
+    }
+    
     try {
-      const { createTrip } = await import("../lib/api");
+      // Ensure suggestions have proper structure
+      const processedSuggestions = (suggestions || []).map(s => ({
+        id: s.id || s.xid || `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: s.name || "Unnamed Place",
+        kinds: s.kinds || "attraction",
+        image: s.image || "",
+        wikiPageId: s.wikiPageId || s.wikipedia || "",
+        cost: 0,
+        duration: "1 hour",
+        category: s.kinds || "attraction",
+        notes: s.notes || s.extract || s.snippet || "",
+        isSelected: false
+      }));
+      
       const newTripData = {
-        tripName: form.tripName,
-        place: form.place,
-        startDate: form.startDate,
-        endDate: form.endDate,
-        budget: form.budget || 0,
-        description: form.description || "",
-        suggestions: (suggestions || []).map(s => ({
-          id: s.xid || `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          name: s.name || "Unnamed Place",
-          kinds: s.kinds || "attraction",
-          image: s.image || "",
-          wikiPageId: s.wikipedia || "",
-          cost: 0,
-          duration: "1 hour",
-          category: s.kinds || "attraction",
-          notes: s.extract || s.snippet || "",
-          isSelected: false
-        }))
+        id: `trip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        owner: authUser.email || authUser.fullName || "user",
+        tripName: form.tripName.trim(),
+        place: form.place.trim(),
+        startDate: form.startDate || null,
+        endDate: form.endDate || null,
+        budget: parseFloat(form.budget) || 0,
+        description: form.description?.trim() || "",
+        currency: "USD",
+        travelers: 1,
+        travelStyle: "solo",
+        suggestions: processedSuggestions,
+        status: "draft",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       
-      const response = await createTrip(newTripData);
-      if (response.success) {
-        toast.success("Trip saved successfully!");
-        // Reset form
-        setForm({
-          tripName: "",
-          place: "",
-          startDate: "",
-          endDate: "",
-          budget: "",
-          description: ""
-        });
-        setSuggestions([]);
-      }
+      console.log("Saving trip to localStorage:", newTripData);
+      
+      // Use localStorage utility function
+      const { saveTripToStorage } = await import("../lib/localStorage");
+      const savedTrip = saveTripToStorage(newTripData);
+      
+      console.log("Trip saved successfully:", savedTrip);
+      
+      // Debug: Show all stored trips
+      const { getTripsFromStorage } = await import("../lib/localStorage");
+      const allTrips = getTripsFromStorage();
+      console.log("All stored trips:", allTrips);
+      
+      toast.success(`Trip saved successfully! You now have ${allTrips.length} trip(s) saved.`);
+      
+      // Reset form
+      setForm({
+        tripName: "",
+        place: "",
+        startDate: "",
+        endDate: "",
+        budget: "",
+        description: ""
+      });
+      setSuggestions([]);
+      
     } catch (error) {
       console.error("Error saving trip:", error);
-      toast.error(error.response?.data?.message || "Failed to save trip. Please try again.");
+      toast.error("Failed to save trip. Please try again.");
     }
   };
 
@@ -405,6 +445,30 @@ const PlanPage = () => {
             </div>
             
             <div className="form-control">
+              <label className="label">Budget (Optional)</label>
+              <input
+                type="number"
+                className="input input-bordered"
+                placeholder="e.g., 1000"
+                value={form.budget || ""}
+                onChange={(e) => setForm({ ...form, budget: e.target.value })}
+                min="0"
+                step="10"
+              />
+            </div>
+            
+            <div className="form-control md:col-span-2">
+              <label className="label">Description (Optional)</label>
+              <textarea
+                className="textarea textarea-bordered"
+                placeholder="Tell us about your trip plans..."
+                value={form.description || ""}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                rows="2"
+              />
+            </div>
+            
+            <div className="form-control md:col-span-2">
               <label className="label">Actions</label>
               <div className="flex flex-col gap-2">
                 <button className="btn btn-primary" onClick={handleFetch} disabled={loading}>

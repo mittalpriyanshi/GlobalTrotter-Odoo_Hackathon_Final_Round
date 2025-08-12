@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getUserTrips, deleteTrip as deleteTripAPI, updateTrip } from "../lib/api";
+import { getTripsFromStorage, deleteTripFromStorage, updateTripInStorage } from "../lib/localStorage";
 import useAuthUser from "../hooks/useAuthUser";
 import Navbar from "../components/Navbar";
 import { CalendarIcon, MapPinIcon, EditIcon, TrashIcon, EyeIcon, ShareIcon, PlusIcon } from "lucide-react";
@@ -14,64 +13,88 @@ const TripsPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
   const [filter, setFilter] = useState("all"); // all, upcoming, past
-  const queryClient = useQueryClient();
+  const [trips, setTrips] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch trips from backend API
-  const { data: tripsData, isLoading, error } = useQuery({
-    queryKey: ["userTrips"],
-    queryFn: getUserTrips,
-    enabled: !!authUser,
-    staleTime: 30000, // Consider data fresh for 30 seconds
-  });
+  // Load trips from localStorage
+  useEffect(() => {
+    const loadTrips = () => {
+      setIsLoading(true);
+      try {
+        const storedTrips = getTripsFromStorage();
+        console.log("Loaded trips from localStorage:", storedTrips);
+        setTrips(storedTrips);
+      } catch (error) {
+        console.error("Error loading trips:", error);
+        toast.error("Failed to load trips");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const trips = tripsData?.trips || [];
+    loadTrips();
+  }, []);
 
-  // Delete trip mutation
-  const deleteTripMutation = useMutation({
-    mutationFn: deleteTripAPI,
-    onSuccess: () => {
-      queryClient.invalidateQueries(["userTrips"]);
+  // Delete trip function
+  const deleteTrip = async (tripId) => {
+    try {
+      deleteTripFromStorage(tripId);
+      setTrips(prevTrips => prevTrips.filter(trip => trip.id !== tripId));
       toast.success("Trip deleted successfully");
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || "Failed to delete trip");
-    }
-  });
-
-  // Update trip mutation
-  const updateTripMutation = useMutation({
-    mutationFn: ({ tripId, tripData }) => updateTrip(tripId, tripData),
-    onSuccess: () => {
-      queryClient.invalidateQueries(["userTrips"]);
-      toast.success("Trip updated successfully");
-      setIsEditModalOpen(false);
-      setEditingTrip(null);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || "Failed to update trip");
-    }
-  });
-
-  const handleDeleteTrip = (tripId) => {
-    if (confirm("Are you sure you want to delete this trip?")) {
-      deleteTripMutation.mutate(tripId);
+    } catch (error) {
+      console.error("Error deleting trip:", error);
+      toast.error("Failed to delete trip");
     }
   };
 
-  const duplicateTrip = (trip) => {
-    const newTripData = {
-      tripName: `${trip.tripName} (Copy)`,
-      place: trip.place,
-      startDate: trip.startDate,
-      endDate: trip.endDate,
-      budget: trip.budget,
-      description: trip.description,
-      suggestions: trip.suggestions || []
-    };
-    
-    // Create new trip via API (we'll need to add createTrip API call)
-    // For now, we'll use the existing updateTrip mutation with a new trip
-    toast.info("Trip duplication feature will be available soon!");
+  // Update trip function
+  const updateTrip = async (tripId, tripData) => {
+    try {
+      const updatedTrip = updateTripInStorage(tripId, tripData);
+      setTrips(prevTrips => 
+        prevTrips.map(trip => trip.id === tripId ? updatedTrip : trip)
+      );
+      toast.success("Trip updated successfully");
+      setIsEditModalOpen(false);
+      setEditingTrip(null);
+    } catch (error) {
+      console.error("Error updating trip:", error);
+      toast.error("Failed to update trip");
+    }
+  };
+
+  const handleDeleteTrip = (tripId) => {
+    if (confirm("Are you sure you want to delete this trip?")) {
+      deleteTrip(tripId);
+    }
+  };
+
+  const duplicateTrip = async (trip) => {
+    try {
+      const { saveTripToStorage } = await import("../lib/localStorage");
+      
+      const newTripData = {
+        owner: trip.owner,
+        tripName: `${trip.tripName} (Copy)`,
+        place: trip.place,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        budget: trip.budget,
+        description: trip.description,
+        currency: trip.currency || "USD",
+        travelers: trip.travelers || 1,
+        travelStyle: trip.travelStyle || "solo",
+        suggestions: trip.suggestions || [],
+        status: "draft"
+      };
+      
+      const duplicatedTrip = saveTripToStorage(newTripData);
+      setTrips(prevTrips => [...prevTrips, duplicatedTrip]);
+      toast.success("Trip duplicated successfully!");
+    } catch (error) {
+      console.error("Error duplicating trip:", error);
+      toast.error("Failed to duplicate trip");
+    }
   };
 
   const saveEditedTrip = () => {
@@ -80,16 +103,13 @@ const TripsPage = () => {
       return;
     }
     
-    updateTripMutation.mutate({
-      tripId: editingTrip._id || editingTrip.id,
-      tripData: {
-        tripName: editingTrip.tripName,
-        place: editingTrip.place,
-        startDate: editingTrip.startDate,
-        endDate: editingTrip.endDate,
-        budget: editingTrip.budget,
-        description: editingTrip.description
-      }
+    updateTrip(editingTrip.id, {
+      tripName: editingTrip.tripName,
+      place: editingTrip.place,
+      startDate: editingTrip.startDate,
+      endDate: editingTrip.endDate,
+      budget: editingTrip.budget,
+      description: editingTrip.description
     });
   };
 
@@ -241,12 +261,6 @@ const TripsPage = () => {
             <div className="flex items-center justify-center h-64">
               <div className="loading loading-spinner loading-lg"></div>
               <p className="ml-4 text-lg opacity-70">Loading your trips...</p>
-            </div>
-          ) : error ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="alert alert-error max-w-md">
-                <span>Failed to load trips. Please try again.</span>
-              </div>
             </div>
           ) : filteredTrips.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
