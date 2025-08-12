@@ -1,6 +1,6 @@
 # 🌍 GlobalTrotter - Complete Travel Management Platform
 
-##Team Number- 246
+## Team Number- 246
 
 A full-stack web application designed for comprehensive travel planning, expense tracking, and journey documentation. Built with modern technologies and designed for travelers who want to organize every aspect of their adventures.
 
