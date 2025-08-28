@@ -53,16 +53,8 @@ A full-stack web application designed for comprehensive travel planning, expense
 ### 📅 **Calendar & Event Management**
 - **Trip Calendar** - Visualize all your trips in calendar format
 - **Event Scheduling** - Plan activities and reserve time slots
-- **Reminder System** - Get notified about upcoming activities
 - **Integration** - Import trip dates automatically
 - **Conflict Detection** - Avoid scheduling overlaps
-
-### 🔔 **Smart Notification System**
-- **Trip Reminders** - Get notified about upcoming departures
-- **Budget Alerts** - Warnings when exceeding spending limits
-- **Activity Notifications** - Reminders for planned activities
-- **Social Updates** - Notifications for shared content interactions
-- **Real-Time Updates** - Live notifications without page refresh
 
 ### 🌐 **Social & Community Features**
 - **Community Hub** - Share experiences with other travelers
@@ -80,17 +72,10 @@ A full-stack web application designed for comprehensive travel planning, expense
 
 ### 📱 **Modern User Experience**
 - **Responsive Design** - Optimized for desktop, tablet, and mobile
-- **Dark/Light Themes** - DaisyUI theme support with retro aesthetic
+- **Themes** - DaisyUI theme support with retro aesthetic
 - **Interactive UI** - Smooth animations and modern components
 - **Real-Time Updates** - Live data synchronization across devices
 - **Offline Capability** - Basic functionality without internet connection
-
-### 📊 **Analytics & Reporting**
-- **Expense Analytics** - Detailed spending breakdowns and trends
-- **Trip Statistics** - Comprehensive data about your travels
-- **Budget Performance** - Track actual vs. planned spending
-- **Travel Insights** - Discover patterns in your travel behavior
-- **Export Capabilities** - Download reports and data
 
 ## 🛠 Technical Stack
 
